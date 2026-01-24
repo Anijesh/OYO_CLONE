@@ -2,11 +2,11 @@ from django.shortcuts import render,redirect
 from .models import *
 from django.db.models import Q
 from django.contrib import messages
-from .utils import generateRandomToken,sendEmailToken
+from .utils import generateRandomToken,sendEmailToken,sendOTPtoEmail
 from django.http import HttpResponse
 from django.contrib.auth import login,logout,authenticate
 from django.contrib.auth.decorators import login_required
-
+import random
 # Create your views here.
 
 def login_page(request):
@@ -72,3 +72,27 @@ def verify_email_token(request,token):
     except Exception as e:
         return HttpResponse("Invaild token")
     
+def send_otp(request,email):
+    hotel_user=HotelUser.objects.filter(email=email)
+    if not hotel_user.exists():
+        messages.error(request,"Invaild email address")
+        return redirect('login_page')
+    otp=random.randint(1000,9999)
+    hotel_user.update(otp=otp)
+    #hotel_user.save()
+    sendOTPtoEmail(email,otp)
+    return redirect(f'/accounts/verify_otp/{email}')
+
+def verify_otp(request,email):
+    if request.method=="POST":
+        otp=request.POST.get('otp')
+        hotel_user=HotelUser.objects.get(email=email)
+
+        if otp==hotel_user.otp:
+            messages.success(request,"login success")
+            login(request,hotel_user)
+            return redirect('/')
+        else:
+            messages.error(request,'Invaild OTP')
+            return redirect('verify_otp',email=email)
+    return render(request,'verify_otp.html')
