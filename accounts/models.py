@@ -13,25 +13,36 @@ class HotelUser(User):
     otp =models.CharField(max_length=10,null=True,blank=True)
     is_verified=models.BooleanField(default=False)
 
+    class Meta:
+        db_table="hotel_user"
 
-class HotelVender(User):
+
+class HotelVendor(User):
     phone_number=models.CharField(unique=True,max_length=10)
+    business_name =models.CharField(max_length=200)
     profile_picture=models.ImageField(upload_to='profile')
     email_token=models.CharField(max_length=100,null=True,blank=True)
     otp =models.CharField(max_length=10,null=True,blank=True)
+    is_verified=models.BooleanField(default=False)
 
+
+    class Meta:
+        db_table="hotel_vendor"
 
 
 class Ameneties(models.Model):
     name=models.CharField(max_length=1000)
     icon=models.ImageField(upload_to='hotels')
 
+    def __str__(self) -> str:
+        return self.name
+
 class Hotel(models.Model):
     hotel_name=models.CharField(max_length=200)
     hotel_location=models.CharField(max_length=200)
     description=models.TextField()
     hotel_slug=models.SlugField(max_length=1000,unique=True)
-    hotel_owner=models.ForeignKey(HotelVender,on_delete=models.CASCADE,related_name='hotels')
+    hotel_owner=models.ForeignKey(HotelVendor,on_delete=models.CASCADE,related_name='hotels')
     ameneties=models.ManyToManyField(Ameneties)
     hotel_price=models.FloatField()
     hotel_offer_price=models.FloatField()
