@@ -15,6 +15,7 @@ urlpatterns = [
     path('add_hotel/',views.add_hotel,name='add_hotel'),
     path('<slug>/upload_images/',views.upload_images,name='upload_images'),
     path('delete_image/<id>/',views.delete_image,name='delete_image'),
-    path('<slug>/edit-hotels',views.edit_hotels,name='edit_hotels')
+    path('<slug>/edit-hotels',views.edit_hotels,name='edit_hotels'),
+    path('logout_view',views.logout_view,name='logout_view')
     
     ]

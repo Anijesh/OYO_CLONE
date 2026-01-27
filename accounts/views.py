@@ -26,7 +26,6 @@ def login_page(request):
         hotel_user=authenticate(username=hotel_user.username,password=password)
 
         if hotel_user:
-            messages.success(request," User verfied")
             login(request,hotel_user)
             return redirect('/')
         else:
@@ -121,8 +120,10 @@ def verify_otp(request, email):
             account.otp = None
             account.save()
             login(request, account)
-            messages.success(request, "Login successful")
-            return redirect('/')
+            if account ==user:
+                return redirect('/')
+            else:
+                return redirect('vendor_dashboard')
         else:
             messages.error(request, "Invalid OTP")
             return redirect('verify_otp', email=email)
@@ -146,7 +147,6 @@ def login_vendor(request):
         hotel_vendor=authenticate(username=hotel_vendor.username,password=password)
 
         if hotel_vendor:
-            messages.success(request," User verfied")
             login(request,hotel_vendor)
             return redirect('vendor_dashboard')
         messages.error(request,"Invaild credentials")
@@ -273,3 +273,7 @@ def edit_hotels(request,slug):
     all_ameneties = Ameneties.objects.all()
     
     return render(request,'vendor/edit_hotels.html',context = {'hotel' : hotel_obj,'ameneties' : all_ameneties})
+
+def logout_view(request):
+    logout(request)
+    return redirect('/')
