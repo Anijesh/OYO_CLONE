@@ -40,7 +40,7 @@ class Ameneties(models.Model):
 class Hotel(models.Model):
     hotel_name=models.CharField(max_length=200)
     hotel_location=models.CharField(max_length=200)
-    description=models.TextField()
+    hotel_description = models.TextField()
     hotel_slug=models.SlugField(max_length=1000,unique=True)
     hotel_owner=models.ForeignKey(HotelVendor,on_delete=models.CASCADE,related_name='hotels')
     ameneties=models.ManyToManyField(Ameneties)

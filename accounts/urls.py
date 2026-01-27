@@ -12,5 +12,8 @@ urlpatterns = [
     path('login_vendor/',views.login_vendor,name='login_vendor'),
     path('register_vendor/',views.register_vendor,name='register_vendor'),
     path('vendor_dashboard/',views.vendor_dashboard,name='vendor_dashboard'),
-    path('add_hotel/',views.add_hotel,name='add_hotel')
+    path('add_hotel/',views.add_hotel,name='add_hotel'),
+    path('delete_image/<id>/',views.delete_image,name='delete_image'),
+    path('<slug>/upload_images/',views.upload_images,name='upload_images'),
+    
     ]

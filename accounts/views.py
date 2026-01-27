@@ -1,9 +1,9 @@
-from django.shortcuts import render,redirect
+from django.shortcuts import render,redirect,get_object_or_404
 from .models import *
 from django.db.models import Q
 from django.contrib import messages
 from .utils import generateRandomToken,sendEmailToken,sendOTPtoEmail,generateSlug
-from django.http import HttpResponse
+from django.http import HttpResponse,HttpResponseRedirect
 from django.contrib.auth import login,logout,authenticate
 from django.contrib.auth.decorators import login_required
 import random
@@ -62,41 +62,72 @@ def register_page(request):
         
     return render(request,'register.html')
 
-def verify_email_token(request,token):
+def verify_email_token(request, token):
     try:
-        hotel_user=HotelUser.objects.get(email_token=token)
-        hotel_user.is_verified=True
-        hotel_user.save()
-        messages.success(request,"email verfied")
+        user = HotelUser.objects.filter(email_token=token).first()
+        vendor = HotelVendor.objects.filter(email_token=token).first()
+
+        if user:
+            user.is_verified = True
+            user.save()
+        elif vendor:
+            vendor.is_verified = True
+            vendor.save()
+        else:
+            return HttpResponse("Invalid token")
+
+        messages.success(request, "Email verified successfully")
         return redirect('login_page')
-    except Exception as e:
-        return HttpResponse("Invaild token")
+
+    except Exception:
+        return HttpResponse("Invalid token")
+
     
-def send_otp(request,email):
-    hotel_user=HotelUser.objects.filter(email=email)
-    if not hotel_user.exists():
-        messages.error(request,"Invaild email address")
+def send_otp(request, email):
+    user = HotelUser.objects.filter(email=email).first()
+    vendor = HotelVendor.objects.filter(email=email).first()
+
+    if not user and not vendor:
+        messages.error(request, "Invalid email address")
         return redirect('login_page')
-    otp=random.randint(1000,9999)
-    hotel_user.update(otp=otp)
-    #hotel_user.save()
-    sendOTPtoEmail(email,otp)
+
+    otp = random.randint(1000, 9999)
+
+    if user:
+        user.otp = otp
+        user.save()
+    else:
+        vendor.otp = otp
+        vendor.save()
+
+    sendOTPtoEmail(email, otp)
     return redirect(f'/accounts/verify_otp/{email}')
 
-def verify_otp(request,email):
-    if request.method=="POST":
-        otp=request.POST.get('otp')
-        hotel_user=HotelUser.objects.get(email=email)
 
-        if otp==hotel_user.otp:
-            messages.success(request,"login success")
-            login(request,hotel_user)
+def verify_otp(request, email):
+    if request.method == "POST":
+        otp = request.POST.get('otp')
+
+        user = HotelUser.objects.filter(email=email).first()
+        vendor = HotelVendor.objects.filter(email=email).first()
+
+        account = user or vendor
+
+        if not account:
+            messages.error(request, "Account not found")
+            return redirect('login_page')
+
+        if str(account.otp) == str(otp):
+            account.otp = None
+            account.save()
+            login(request, account)
+            messages.success(request, "Login successful")
             return redirect('/')
         else:
-            messages.error(request,'Invaild OTP')
-            return redirect('verify_otp',email=email)
-    return render(request,'verify_otp.html')
+            messages.error(request, "Invalid OTP")
+            return redirect('verify_otp', email=email)
 
+    return render(request, 'verify_otp.html')
 
 def login_vendor(request):
     if request.method == "POST":
@@ -155,7 +186,8 @@ def register_vendor(request):
 
 @login_required(login_url='login_vendor')
 def vendor_dashboard(request):
-    return render(request,'vendor/vendor_dashboard.html')
+    hotels=Hotel.objects.filter(hotel_owner=request.user)
+    return render(request,'vendor/vendor_dashboard.html',context={'hotels':hotels})
 
 @login_required(login_url='login_vendor')
 def add_hotel(request):
@@ -163,20 +195,52 @@ def add_hotel(request):
         hotel_name = request.POST.get("hotel_name")
         hotel_location = request.POST.get("hotel_location")
         hotel_description = request.POST.get('hotel_description')
-        ameneties =request.POST.get('ameneties')
+        ameneties_ids = request.POST.getlist('ameneties')
         hotel_price = request.POST.get('hotel_price')
         hotel_offer_price = request.POST.get('hotel_offer_price')
         hotel_slug = generateSlug(hotel_name)
 
-        hotel_vendor = HotelVendor.objects.get(id=request.id)
-        hotel=Hotel.objects.create(hotel_name=hotel_name,
+        hotel_vendor = HotelVendor.objects.get(id=request.user.id)
+        hotel_obj=Hotel.objects.create(hotel_name=hotel_name,
                                    hotel_location= hotel_location,
                                    hotel_description= hotel_description,
+                                   hotel_owner =hotel_vendor,
                                    hotel_price=hotel_price,
                                    hotel_offer_price=hotel_offer_price,
-                                   hotel_slug= hotel_slug
+                                   hotel_slug= hotel_slug,
                                    )
+        
+        for amenetie_id in ameneties_ids:
+            amenetie_obj= get_object_or_404(Ameneties, id=amenetie_id)
+            hotel_obj.ameneties.add(amenetie_obj)
+            hotel_obj.save()
         messages.success(request,'Hotel Created')
-        return redirect('vendor_dashboard')
+        return redirect('/accounts/add_hotel/')
     
-    return render(request,'vendor/add_hotel.html')
+    ameneties=Ameneties.objects.all()
+    
+    return render(request,'vendor/add_hotel.html',context={'ameneties':ameneties})
+
+@login_required(login_url='login_vendor')
+def upload_images(request,slug):
+    hotel_obj = Hotel.objects.get(hotel_slug = slug)
+    if request.method=="POST":
+        image=request.FILES['image']
+        print(image)
+        HotelImages.objects.create(
+        hotel = hotel_obj,
+        image = image
+        )
+        return HttpResponseRedirect(request.path_info)
+    return render(request,'vendor/upload_images.html',context = {'images' : hotel_obj.hotel_images.all()})
+
+@login_required(login_url='login_vendor')
+def delete_image(request, id):
+    hotel_image = get_object_or_404(HotelImages, id=id)
+
+    if hotel_image.hotel.hotel_owner != request.user:
+        messages.error(request, "You are not allowed to delete this image")
+        return redirect('vendor_dashboard')
+    hotel_image.delete()
+    messages.success(request, "Hotel image deleted successfully")
+    return redirect('vendor_dashboard')
