@@ -238,9 +238,38 @@ def upload_images(request,slug):
 def delete_image(request, id):
     hotel_image = get_object_or_404(HotelImages, id=id)
 
-    if hotel_image.hotel.hotel_owner != request.user:
+    if hotel_image.hotel.hotel_owner.id != request.user.id:
         messages.error(request, "You are not allowed to delete this image")
         return redirect('vendor_dashboard')
     hotel_image.delete()
     messages.success(request, "Hotel image deleted successfully")
     return redirect('vendor_dashboard')
+
+@login_required(login_url='login_vendor')
+def edit_hotels(request,slug):
+    hotel_obj = Hotel.objects.get(hotel_slug = slug)
+    if hotel_obj.hotel_owner.id != request.user.id:
+        messages.error(request,"You are not allowed to edit the hotel")
+        return redirect('vendor_dashboard')
+
+    if request.method == "POST":
+        hotel_name = request.POST.get('hotel_name')
+        hotel_description = request.POST.get('hotel_description')
+        hotel_price= request.POST.get('hotel_price')
+        hotel_offer_price= request.POST.get('hotel_offer_price')
+        hotel_location= request.POST.get('hotel_location')
+        hotel_obj.hotel_name  = hotel_name
+        hotel_obj.hotel_description  = hotel_description
+        hotel_obj.hotel_price  = hotel_price
+        hotel_obj.hotel_offer_price  = hotel_offer_price
+        hotel_obj.hotel_location  = hotel_location
+        hotel_obj.save()
+
+        ameneties_ids = request.POST.getlist('ameneties')
+        hotel_obj.ameneties.set(ameneties_ids)
+
+        messages.success(request, "Hotel Details Updated")
+        return HttpResponseRedirect(request.path_info)
+    all_ameneties = Ameneties.objects.all()
+    
+    return render(request,'vendor/edit_hotels.html',context = {'hotel' : hotel_obj,'ameneties' : all_ameneties})
