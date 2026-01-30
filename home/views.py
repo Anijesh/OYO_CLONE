@@ -7,7 +7,7 @@ from django.contrib import messages
 
 
 def index(request):
-    hotels = Hotel.objects.all()
+    hotels = Hotel.objects.all().prefetch_related('hotel_images','ameneties')
     if request.GET.get('search'):
         hotels = hotels.filter(hotel_name__icontains = request.GET.get('search'))
     
