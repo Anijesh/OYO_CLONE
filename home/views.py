@@ -5,7 +5,10 @@ from django.contrib import messages
 
 # Create your views here.
 
+from django.views.decorators.cache import cache_page # for the caching
 
+
+@cache_page(60 * 15) # how the cache works
 def index(request):
     hotels = Hotel.objects.all().prefetch_related('hotel_images','ameneties')
     if request.GET.get('search'):
